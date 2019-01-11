@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<weblogic-web-app xmlns="http://www.bea.com/ns/weblogic/weblogic-web-app" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.bea.com/ns/weblogic/weblogic-web-app        http://www.bea.com/ns/weblogic/weblogic-web-app/1.0/weblogic-web-app.xsd">
+	<context-root>voice_prompt</context-root>
+	<container-descriptor>
+		<!--修改JVAV类后不会自动重启 在debug模式下 修改方法内逻辑也不用重启，但是改变方法参数等需要重启才管用 -->
+		<servlet-reload-check-secs>1</servlet-reload-check-secs>
+		<prefer-web-inf-classes>true</prefer-web-inf-classes>
+		<show-archived-real-path-enabled>true</show-archived-real-path-enabled>
+	</container-descriptor>
+</weblogic-web-app>

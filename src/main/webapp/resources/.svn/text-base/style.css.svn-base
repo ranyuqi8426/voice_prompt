@@ -1,0 +1,45 @@
+body {
+	background-color: #ccc;
+}
+
+#loading {
+	position: absolute;
+	left: 45%;
+	top: 40%;
+	padding: 2px;
+	z-index: 20001;
+	height: auto;
+}
+
+#loading a {
+	color: #225588;
+}
+
+#loading .loading-indicator {
+	background: white;
+	color: #444;
+	font: bold 13px tahoma, arial, helvetica;
+	padding: 10px;
+	margin: 0;
+	height: auto;
+}
+
+#loading-msg {
+	font: normal 12px arial, tahoma, sans-serif;
+}
+
+.x-action-col-glyph {
+	font-size: 16px;
+	line-height: 16px;
+	color: #9BC8E9;
+	width: 20px;
+	margin-right: 5px
+}
+
+.x-action-col-glyph:hover {
+	color: #3892D3
+}
+
+.icon-upload {
+	background-image: url(images/upload.png) !important;
+}

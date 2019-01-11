@@ -1,0 +1,464 @@
+/**
+ * 定义下拉列表dataModel
+ */
+Ext.define('ComboboxData', {
+	extend : 'Ext.data.Model',
+	fields : [ 'value', 'content' ]
+});
+
+function showMask() {
+	Ext.getBody().mask('正在处理中...').setZIndex(Ext.WindowManager.getNextZSeed());
+}
+function unMask() {
+	Ext.getBody().unmask();
+}
+// 定义按钮图标
+var glyphAdd = 0xf055;// 新增
+var glyphUpdate = 0xf044;// 修改
+var glyphDelete = 0xf056;// 删除
+var glyphRefresh = 0xf021;// 刷新
+var glyphView = 0xf05a;// 查看
+var glyphClear = 0xf0e2;// 清空
+var glyphSave = 0xf0c7;// 保存
+var glyphCommit = 0xf0c7;// 保存
+var glyphClose = 0xf00d;// 关闭
+var glyphBack = 0xf148;// 返回
+var glyphOK = 0xf00c;// 确认
+var glyphCheck = 0xf058;// 审核
+var glyphUnCheck = 61751;// 反审核
+var glyphSearch = 0xf002;// 查询
+var glyphSelect = 0xf08b;// 选择
+var glyphGrid = 0xf00b;// grid
+var glyphTree = 0xf19c;// tree
+var glyphWindow = 0xf022;// window
+var glyphForm = 0xf03a;// form
+var glyphImport = 0xf112;// import
+var glyphExport = 0xf064;// export
+var glyphExcel = 0xf1c3;// 导出excel
+var glyphReset = 0xf1da;// 重置
+var glyphCreate = 0xf1d8;// 生成
+var glyphUp = 0xf139;// 上移
+var glyphDown = 0xf13a;// 下移
+
+// 页面分页数
+var pagelimit = 25;
+
+/**
+ * 初始化参数，页面宽、高、ajaxMask等
+ */
+function initParam() {
+	pageW = Ext.dom.Element.getViewportWidth();
+	pageH = Ext.dom.Element.getViewportHeight();
+	// Ext.QuickTips.init();// 自动开启提示
+	Ext.tip.QuickTipManager.init();
+	Ext.state.Manager.setProvider(new Ext.create('Ext.state.CookieProvider', {
+		expires : new Date(new Date().getTime() + (1000 * 60 * 60 * 24 * 30))
+	})); // cookie30天过期
+	Ext.setGlyphFontFamily('FontAwesome'); // 设置图标字体文件，只有设置了以后才能用glyph属性
+
+	Ext.define('Balance.web.ExceptionInterceptor', {
+		extend : 'Balance.web.AbstractInterceptor',
+		interceptor : function(options, response) {
+			var resultData = Ext.decode(response.responseText);
+			if (resultData.isException) {
+				Ext.MessageBox.alert(resultData.exName, resultData.message);
+				return false;
+			}
+			if (resultData.isSessionOut) {
+				Ext.MessageBox.alert('系统提示', 'Session超时，请重新登录！', function() {
+					window.location = Ext.CONTEXT + 'login.do';
+				});
+				return false;
+			}
+			return true;
+		}
+	});
+	Ext.Ajax.addInterceptor('Balance.web.ExceptionInterceptor');
+
+	// 自定义校验
+	Ext.apply(Ext.form.field.VTypes, {
+		mobile : function(v) {
+			var reg = /^1[3-9]\d{9}$/;
+			return reg.test(v);
+		},
+		mobileText : '手机号输入错误',
+		zipcode : function(v) {
+			var reg = /^[1-9]\d{5}$/;
+			return reg.test(v);
+		},
+		zipcodeText : '邮政编码输入错误',
+		posInt : function(v) {
+			var reg = /^\+?[1-9][0-9]{0,8}$/;
+			return reg.test(v);
+		},
+		emailText : '邮箱输入错误',
+		email : function(v) {
+			var reg = /^([A-Za-z0-9_-])+@([A-Za-z0-9_-])+(.[A-Za-z0-9_-])+/;
+			return reg.test(v);
+		},
+		posIntText : '数字输入错误',
+		intNumber : function(v) {
+			var reg = /^\d+$/;
+			return reg.test(v);
+		},
+		posInt2Text : '只能输入英文和数字',
+		intNumber2 : function(v) {
+			var reg = /^[A-Za-z0-9]+$/;
+			return reg.test(v);
+		},
+		intNumberText : '只能输入整数',
+		floatNumber : function(v) {
+			var reg = /^([1-9][\d]{0,7}|0)(\.[\d]{1,2})?$/;
+			return reg.test(v);
+		},
+		floatNumberText : '只能输入小数',
+		
+		floatNumber3 : function(v) {
+			var reg = /^([1-9][\d]{0,7}|0)(\.[\d]{1,3})?$/;
+			return reg.test(v);
+		},
+		mobileText : 'IP输入错误',
+		checkip : function(v) {
+			var reg =  /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/ 
+			return reg.test(v);
+		},
+		floatNumber3Text : '只能输入小数',
+		confirmPassword : function(val, field) {
+			if (field.confirmTo) {
+				var pwd = Ext.getCmp(field.confirmTo);
+				return (val == pwd.getValue());
+			}
+			return true;
+		},
+		confirmPasswordText : '两次密码输入不一致'
+	});
+}
+
+/**
+ * 保存全部修改
+ */
+function saveAll(store, url) {
+	var json = [];
+	for (var i = 0, cnt = store.getCount(); i < cnt; i += 1) {
+		var record = store.getAt(i);
+		json.push(record.data);
+	}
+	showMask()
+	// url='saveBatch.jsp?action=save&report='
+	url = url;
+	Ext.Ajax.request({
+		url : url,
+		timeout : 300000,
+		params : {
+			datas : Ext.encode(json)
+		// datas : encodeURIComponent(encodeURIComponent(Ext.encode(json)))
+		},
+		method : 'POST',
+		success : function(response) {
+			unMask();
+			var result = Ext.JSON.decode(response.responseText)
+			if (result.success)
+				store.reload();
+			else {
+				Ext.Msg.alert('提示', result.msgText);
+			}
+		},
+		failure : function() {
+			unMask()
+			Ext.Msg.alert('提示', '数据操作失败');
+		}
+	});
+}
+
+/**
+ * 封装ajax操作
+ * 
+ * @param{} config
+ * @return{Boolean}
+ */
+var ajax = function(config) { // 封装、简化AJAX
+	ajaxMask.show();
+	Ext.Ajax.request({
+		url : config.url, // 请求地址
+		timeout : 300000,
+		params : config.params, // 请求参数
+		method : 'post', // 方法
+		callback : function(options, success, response) {
+			ajaxMask.hide();
+			config.callback(Ext.JSON.decode(response.responseText));
+			// 调用回调函数
+		},
+		failure : function(response) {
+			ajaxMask.hide();
+			Ext.MessageBox.show({
+				title : '提示',
+				msg : '操作失败！',
+				buttons : Ext.MessageBox.OK,
+				icon : Ext.MessageBox.ERROR
+			});
+		}
+	});
+	return false;
+};
+
+var ajaxSave = function(config, store) { // 封装、简化AJAX
+	ajaxMask.show();
+	Ext.Ajax.request({
+		url : config.url, // 请求地址
+		timeout : 300000,
+		params : config.params, // 请求参数
+		method : 'post', // 方法
+		callback : function(options, success, response) {
+			ajaxMask.hide();
+			var result = Ext.JSON.decode(response.responseText);
+			if (result.success) {
+				store.reload();
+			} else {
+				alert(result.msgText);
+			}
+		},
+		failure : function(response) {
+			ajaxMask.hide();
+			Ext.MessageBox.show({
+				title : '提示',
+				msg : '操作失败！',
+				buttons : Ext.MessageBox.OK,
+				icon : Ext.MessageBox.ERROR
+			});
+		}
+	});
+	return false;
+};
+
+/**
+ * 处理json对象，转成字符串提交
+ * 
+ * @param{} json
+ * @return {}
+ */
+function encodeParam(json) {
+	return encodeURIComponent(encodeURIComponent(Ext.encode(json)));
+}
+
+/**
+ * checkBoxTree选中事件
+ * 
+ * @param{} node
+ * @param{} checked
+ */
+function checkBoxTreeCheck(node, checked) {
+	nodeChildCheck(node, checked);
+	nodeParentCheck(node.parentNode, checked);
+};
+function nodeChildCheck(node, checked) {
+	node.checked = checked;
+	node.eachChild(function(child) {
+		child.set('checked', checked);
+		nodeChildCheck(child, checked);
+	});
+}
+function nodeParentCheck(node, checked) {
+	if (node && !node.leaf && checked && node.id != 'root') {
+		node.set('checked', checked);
+		nodeParentCheck(node.parentNode, checked);
+	}
+}
+
+/**
+ * 把是否变为checkbox
+ */
+function renderCheckBox(value) {
+	return '<input type="checkbox"' + (value == 1 ? " checked" : "")
+			+ ' style="vertical-align:middle; margin-top:-2px; margin-bottom:-2px;" />';
+}
+
+/**
+ * 显示修改界面的代码字段，disabled
+ * 
+ * @param form
+ * @param field
+ * @param value
+ */
+function showUpdateCode(form, field, value) {
+	form.getForm().findField(field).show();
+	form.getForm().findField(field).setDisabled(true);
+	form.getForm().findField(field).setValue(value);
+}
+/**
+ * 设置页面修改、删除、提交三个按钮是否可用
+ * 
+ * @param bool1
+ * @param bool2
+ * @param bool3
+ */
+function setButtonDisabled(b1) {
+	Ext.getCmp('btnUpdate').setDisabled(b1);
+	Ext.getCmp('btnDelete').setDisabled(b1);
+	Ext.getCmp('btnCommit').setDisabled(b1);
+}
+
+/**
+ * 设置form只读
+ * @param formPanel
+ * @param val
+ */
+function setFormReadOnly(formPanel, val) {
+	// formPanel.setDisabled(true)
+	var color = '#FFF';
+	if (val == true)
+		color = '#F6F6F6';
+	for (var i = 0; i < formPanel.getForm().getFields().length; i++) {
+		var item = formPanel.getForm().getFields().items[i];
+		var xtype = item.xtype;
+		if (xtype == 'textfield' || xtype == 'combobox' || xtype == 'textarea' || xtype == 'datefield'
+				|| xtype == 'textareafield') {
+			item.setReadOnly(val);
+			item.setFieldStyle('background:' + color);
+		}
+	}
+}
+
+/**
+ * 设置字段readOnly，
+ * @param form form的名称
+ * @param field 字段名称
+ * @param value true或false
+ */
+function setFieldReadOnly(form, field, value) {
+	form.getForm().findField(field).show();
+	form.getForm().findField(field).setReadOnly(value);
+	if (value == true)
+		form.getForm().findField(field).setFieldStyle("background-color:#F6F6F6");
+	else
+		form.getForm().findField(field).setFieldStyle("background-color:#FFFFFF");
+}
+/**
+ * 设置字段值
+ * @param form
+ * @param field
+ * @param value
+ * @returns
+ */
+function setFieldValue(form, field, value) {
+	form.getForm().findField(field).setValue(value);
+}
+
+/**
+ * 设置行选中
+ * @param grid
+ * @param rowIndex 行数
+ * @returns
+ */
+function setGridSelect(grid, rowIndex) {
+	grid.getSelectionModel().select(grid.getStore().getAt(rowIndex));
+}
+
+/**
+ * 移动记录，从一个grid移动到另一个grid
+ */
+function moveRecord(outGrid, intoGrid) {
+	var records = outGrid.getSelectionModel().getSelection();
+	if (records) {
+		var intoStore = intoGrid.getStore();
+		var outStore = outGrid.getStore();
+		intoGrid.getStore().insert(intoStore.getCount(), records);
+		// intoGrid.getView().refresh();
+		var outRowNum = outStore.indexOf(records[0]);
+		outGrid.getStore().remove(records);
+		if (records.length == 1 && outStore.getCount() > 0) {// 当只移动一条记录时，默认选中上一行，如果已经是第一行，选择下一行
+			if (outRowNum == outStore.getCount())
+				outRowNum = outRowNum - 1;
+			outGrid.getSelectionModel().select(outRowNum);
+		}
+	}
+}
+
+/**
+ * 打开报表查看
+ * @param rptName表号
+ * @param params参数列表
+ */
+function openRptViewTab(rptName, params) {
+	var json = eval(rptPage)
+	for (var i = 0; i < rptPage.length; i++) {
+		if (rptName == json[i].rptName) {
+			parent.openTabRefresh(json[i].pageId, json[i].pageTitle, json[i].url + "?" + params);
+			break;
+		}
+	}
+}
+// 渲染报表列
+function rendererRpt(rptName, params) {
+	var openStr = "<a href=\"javascript:openRptViewTab('" + rptName + "','" + params + "');\" title='查看详情'>" + rptName
+			+ "</a>";
+	return openStr;
+}
+// 报表种类
+function renderBbzl(val) {
+	if (val == 'M')
+		return '月报';
+	else if (val == 'Q')
+		return '季报';
+	else if (val == 'Y')
+		return '年报';
+	else
+		return '';
+}
+
+/**
+ * 上移下移
+ * 
+ * @param{} grid
+ * @param{} toward
+ */
+function upAndDown(grid, toward) {
+	var rec = grid.getSelectionModel().getLastSelected();
+	if (!rec)
+		return;
+	var store = grid.getStore();
+	var rowIndex = store.indexOf(rec);
+	if (toward < 0) {
+		if (rowIndex > 0) {
+			store.remove(rec);
+			store.insert(rowIndex - 1, rec);
+			grid.getSelectionModel().select(rowIndex - 1);
+			grid.getView().refresh();
+		}
+	} else if (toward > 0) {
+		if (rowIndex < store.getCount() - 1) {
+			store.remove(rec);
+			store.insert(rowIndex + 1, rec);
+			grid.getSelectionModel().select(rowIndex + 1);
+			grid.getView().refresh();
+		}
+	}
+
+	
+}
+
+// 金额转换
+function moneyFormat(val) {
+	var str= (val/100).toFixed(2);
+	var intval  = str.substring(0,str.indexOf('.')).replace(/\B(?=(?:\d{3})+$)/g, ',' );
+	var douval = str.substring(str.indexOf('.'),str.length);
+	return intval+douval;
+}
+
+//时间转换yyyymmdd --> yyyy-mm-dd
+function dateFormat(val) {
+	if(val.length == 8){
+		return val.substring(0,4)+"-"+val.substring(4,6)+"-"+val.substring(6,8);
+	}else{
+		return val;
+	}
+}
+//时间转换yyyymmddhhmin24ss --> yyyy-mm-dd hh:min24
+function datesFormat(val) {
+	if(val.length == 14){
+		return val.substring(0,4)+"-"+val.substring(4,6)+"-"+val.substring(6,8)+" "+val.substring(8,10)+":"+val.substring(10,12);
+	}else if(val.length==19){
+		return val.substring(0,16);
+	}else{
+		return val;
+	}
+}
